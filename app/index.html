@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
+  <!-- WARNING: for iOS 7, remove the width=device-width and height=device-height attributes. See https://issues.apache.org/jira/browse/CB-4323 -->
+  <meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width, height=device-height, target-densitydpi=device-dpi"
+  />
+  <title>Firepad Replay</title>
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/3.6.4/firebase.js"></script>
+
+  <!-- CodeMirror -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.17.0/codemirror.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.17.0/codemirror.css" />
+
+  <!-- Firepad -->
+  <link rel="stylesheet" href="https://cdn.firebase.com/libs/firepad/1.4.0/firepad.css" />
+  <script src="https://cdn.firebase.com/libs/firepad/1.4.0/firepad.min.js"></script>
+  <link rel="stylesheet" href="styles.css">
+  <script src="/app.js"></script>
+  <script>require('initialize');</script>
+</head>
+
+<body onload="init()">
+<div id="firepad">
+</div>
+<div id="history">
+</div>
+<div>
+  <button onclick="getSnapshotHistory()">Get History</button>
+<button onclick="initHistory()">Show History</button>
+<button onclick="showPrevSnapshot()">Prev</button>
+<button onclick="showNextSnapshot()">Next</button>
+</div>
+<script>
+  var historyVal = [];
+  var currentPosition = 0;
+  function init() {
+    // Initialize Firebase.
+    // TODO: replace with your Firebase project configuration.
+      var config = {
+      apiKey: "<API_KEY>",
+      authDomain: "<AUTH_DOMAIN>.firebaseapp.com",
+      databaseURL: "https://<DATABASE_NAME>.firebaseio.com"
+    };
+    firebase.initializeApp(config);
+
+    // Get Firebase Database reference.
+    var firepadRef = firebase.database().ref();
+    // Create CodeMirror (with lineWrapping on).
+    var codeMirror = CodeMirror(document.getElementById('firepad'), { lineWrapping: true });
+
+    // Create Firepad (with rich text toolbar and shortcuts enabled).
+    var firepad = Firepad.fromCodeMirror(firepadRef, codeMirror, {
+      richTextShortcuts: true,
+      richTextToolbar: true,
+      defaultText: 'Welcome to Firepad Replay!'
+    });
+  }
+
+  var TextOperation = Firepad.TextOperation;
+  this.document_ = new TextOperation();
+
+  function getSnapshotHistory() {
+    var historyVal = []
+    var firepadRef = firebase.database().ref();
+    this.historyVal = [];
+    firepadRef.child('history').once('value', function (historySnapshot) {
+      historySnapshot.forEach(function (itemSnapshot) {
+        var revision = parseRevision_(itemSnapshot.val());
+        this.document_ = this.document_.compose(revision.operation);
+        historyVal.push(this.document_['ops'][0]['text']);
+      });
+    });
+    this.document_ = new TextOperation();
+    this.historyVal = historyVal;
+  }
+
+
+  var parseRevision_ = function (data) {
+    // We could do some of this validation via security rules.  But it's nice to be robust, just in case.
+    if (typeof data !== 'object') { return null; }
+    if (typeof data.a !== 'string' || typeof data.o !== 'object') { return null; }
+    var op = null;
+    try {
+      op = TextOperation.fromJSON(data.o);
+    }
+    catch (e) {
+      return null;
+    }
+    if (op.baseLength !== this.document_.targetLength) {
+      return null;
+    }
+    return { author: data.a, operation: op }
+  };
+
+  function initHistory() {
+    var element = document.getElementById("history");
+    if (this.historyVal.length > 0) {
+      element.innerText = this.historyVal[0];
+    } else {
+      element.innerHTML = '<em>No data found in history</em>'
+    }
+  }
+
+  function showPrevSnapshot() {
+    var element = document.getElementById("history");
+    if (this.currentPosition > 0) {
+      this.currentPosition--;
+      element.innerText = this.historyVal[this.currentPosition];
+    } else {
+      alert('This is the oldest snapshot');
+    }
+  }
+
+  function showNextSnapshot() {
+    var element = document.getElementById("history");
+    if (this.currentPosition < this.historyVal.length - 1) {
+      this.currentPosition++;
+      element.innerText = this.historyVal[this.currentPosition];
+    } else {
+      alert('This is the latest snapshot')
+    }
+  }
+
+
+</script>
+</body>
+
+</html>

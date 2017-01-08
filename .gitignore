@@ -1,0 +1,13 @@
+node_modules*
+npm-debug.log
+.swp
+dist
+bin/
+.tmp/
+.idea/
+.settings/
+.sass-cache/
+*~
+.DS_Store
+.project
+.vscode/
